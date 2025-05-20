@@ -354,8 +354,8 @@ Else:
 ## 📞 Contact & Support
 
 **Project Team / Contact**
-✉️ [contact.project@industry.com](mailto: mdomche@gmail.com)
-📞 +33 6 12 34 56 78
+✉️ mdomche@gmail.com
+📞 +49 159 061 29 431
 
 ---
 
