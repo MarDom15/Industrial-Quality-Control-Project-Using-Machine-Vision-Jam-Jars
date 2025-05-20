@@ -93,6 +93,25 @@ Else:
 * **Reflection analysis**: detect shadows or unusual reflections on the lid via intensity histogram.
 * **3D option**: measure lid height to confirm proper closure.
 
+```
+Acquire image with lid
+Convert to grayscale
+Extract lid contour (e.g. Canny)
+Analyze contour continuity
+If contour is continuous without breaks:
+    Closure OK = TRUE
+Else:
+    Closure OK = FALSE
+
+Analyze intensity histogram within lid area
+If abnormal peaks detected (shadows/reflections):
+    Closure OK = FALSE
+
+Return Closure OK or "lid not properly closed" defect
+
+```
+
+
 ---
 
 ### 3. Label Presence and Conformity 🏷️
@@ -101,6 +120,25 @@ Else:
 * **Presence check**: texture and contrast analysis to confirm label presence.
 * **Text verification**: built-in OCR to extract and validate key information (date, batch, name).
 * **Criterion**: text correct → OK; else defect.
+
+```
+Acquire side view image of jar
+Define ROI for label area
+Extract ROI
+Analyze texture and contrast to confirm label presence
+If label present:
+    Apply OCR on ROI
+    Extract key fields (date, batch, name)
+    For each key field:
+        Check presence and format correctness
+    If all correct:
+        Return OK
+    Else:
+        Return "label unreadable or incorrect" defect
+Else:
+    Return "label missing" defect
+
+```
 
 ---
 
@@ -111,6 +149,20 @@ Else:
 * **Measurement**: measure liquid height in pixels, convert to real units.
 * **Criterion**: level within tolerance → OK; else defect.
 
+```
+Acquire side/transparent image
+Convert to grayscale
+Define ROI for jam area
+Apply adaptive threshold to segment jam vs air
+Measure jam segment height in pixels
+Convert pixels to mm (calibration)
+If height within tolerance:
+    Return OK
+Else:
+    Return "incorrect level" defect
+
+```
+
 ---
 
 ### 5. Result Fusion and Alert 🚨
@@ -119,6 +171,21 @@ Else:
 * If any defect, camera sends alert to PLC.
 * PLC displays **red square ❌** and error message on HMI for operator.
 
+```
+Receive results:
+    Lid presence OK/defect
+    Lid closure OK/defect
+    Label OK/defect
+    Level OK/defect
+
+If any defect detected:
+    Send alert to PLC
+    Display red square on HMI
+    Show corresponding error message
+Else:
+    No alert
+
+```
 ---
 
 ## 🔧 Configuration and Programming Details
@@ -146,6 +213,22 @@ Else:
 * Receive defect signals from camera.
 * Control HMI display and trigger actions (e.g. line stop, reject).
 
+```
+// Input variables
+Cam_defect_lid_presence   // BOOL
+Cam_defect_lid_closure    // BOOL
+Cam_defect_label          // BOOL
+Cam_defect_level          // BOOL
+
+// HMI alert output
+HMI_Alert := Cam_defect_lid_presence OR Cam_defect_lid_closure OR Cam_defect_label OR Cam_defect_level;
+
+// Optional line stop output
+Line_Stop := HMI_Alert;
+
+```
+
+
 ---
 
 ### 3. HMI Configuration 🖥️
@@ -153,6 +236,54 @@ Else:
 * Display red square ❌ if defect.
 * Show specific error messages.
 * Buttons for reset and acknowledge.
+
+```
+If Cam_defect_lid_presence == TRUE:
+    Show "Lid missing"
+Else If Cam_defect_lid_closure == TRUE:
+    Show "Lid not closed properly"
+Else If Cam_defect_label == TRUE:
+    Show "Label missing or unreadable"
+Else If Cam_defect_level == TRUE:
+    Show "Jam level incorrect"
+Else:
+    Show "All OK"
+
+```
+---
+
+### 🖥️ Interface HMI — "Quality Control Dashboard"
+┌─────────────────────────────────────────────┐
+│        🍯 Jam Jar Quality Control           │
+├─────────────────────────────────────────────┤
+│                                             │
+│   🔴 [Red square]   ← Visible if HMI_Alert  │
+│   ⚠️  [Alert Message Box]                   │
+│                                             │
+├─────────────────────────────────────────────┤
+│   🧢 Lid Presence:         [OK] / [DEFECT]  │
+│   🔒 Lid Closure:          [OK] / [DEFECT]  │
+│   🏷️ Label:                [OK] / [DEFECT]  │
+│   📏 Jam Level:            [OK] / [DEFECT]  │
+├─────────────────────────────────────────────┤
+│   ✅ [Reset Button]     🚫 [Stop Line Button]│
+└─────────────────────────────────────────────┘
+
+
+# 🍯 Jam Jar Quality Control Panel
+
+| Component                | Status / Control                  |
+|--------------------------|-----------------------------------|
+| 🔴 Red Alert Box         | **Visible when** `HMI_Alert = 1` |
+| ⚠️ Message               | Lid missing / Not closed / ...    |
+| 🧢 Lid Presence          | ✅ OK / ❌ DEFECT                 |
+| 🔒 Lid Closure           | ✅ OK / ❌ DEFECT                 |
+| 🏷️ Label Detection       | ✅ OK / ❌ DEFECT                 |
+| 📏 Jam Level             | ✅ OK / ❌ DEFECT                 |
+| ✅ Reset Button          | Resets alerts                     |
+| 🚫 Stop Line Button      | Stops the line                    |
+
+
 
 ---
 
